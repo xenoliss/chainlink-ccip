@@ -19,6 +19,9 @@ pub use state::*;
 mod eth_utils;
 use eth_utils::*;
 
+mod eip712;
+pub use eip712::*;
+
 mod instructions;
 use instructions::*;
 

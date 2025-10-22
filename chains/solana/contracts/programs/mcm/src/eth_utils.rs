@@ -14,7 +14,7 @@
 //!
 //! These separators ensure that hashes for different purposes cannot be reused or confused.
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::keccak::{hash, hashv, Hash, HASH_BYTES}; // use keccak256 for EVM compatibility
+use anchor_lang::solana_program::keccak::{hash, hashv, HASH_BYTES}; // use keccak256 for EVM compatibility
 use anchor_lang::solana_program::secp256k1_recover::{
     secp256k1_recover, Secp256k1Pubkey, Secp256k1RecoverError,
 };
@@ -54,7 +54,7 @@ pub const EVM_ADDRESS_BYTES: usize = 20;
 ///
 /// # Parameters
 ///
-/// - `eth_signed_msg_hash`: 32-byte hash of the Ethereum signed message
+/// - `eth_signed_msg_hash`: 32-byte EIP-712 message hash
 /// - `sig`: The ECDSA signature containing v, r, s components
 ///
 /// # Returns
@@ -79,30 +79,6 @@ pub fn ecdsa_recover_evm_addr(
         .unwrap();
 
     Ok(evm_addr)
-}
-
-/// Computes the Ethereum-compatible message hash for root validation.
-///
-/// Creates a hash that matches Ethereum's personal sign message format:
-/// "\x19Ethereum Signed Message:\n32" + keccak256(root || valid_until)
-///
-/// # Parameters
-///
-/// - `root`: The 32-byte Merkle root
-/// - `valid_until`: Timestamp until which the root is valid
-///
-/// # Returns
-///
-/// - The 32-byte message hash ready for ECDSA verification
-pub fn compute_eth_message_hash(root: &[u8; HASH_BYTES], valid_until: u32) -> Hash {
-    // Use big-endian encoding for EVM compatibility
-    let valid_until_bytes = left_pad_vec(&valid_until.to_be_bytes());
-    let hashed_encoded_params = hashv(&[root, &valid_until_bytes]);
-
-    hashv(&[
-        b"\x19Ethereum Signed Message:\n32",
-        &hashed_encoded_params.to_bytes(),
-    ])
 }
 
 /// Calculates a Merkle root from a leaf node and a proof path.
@@ -392,23 +368,6 @@ mod tests {
         }
     }
 
-    mod test_compute_eth_message_hash {
-        use super::*;
-
-        #[test]
-        fn basic() {
-            let root =
-                &decode32("d5ef592d1ad183db43b4980d7ab7ee43a6f6a284988c3e3a23d38c07beb520c7");
-            let valid_until: u32 = 1748317727;
-
-            let result = compute_eth_message_hash(root, valid_until);
-
-            assert_eq!(
-                result.to_bytes(),
-                decode32("032705bd71839baef725154f00f87ddcc1d95c4b5189c9fb5983f26ad6c95102")
-            );
-        }
-    }
 
     mod test_hash_leaf {
         use super::*;

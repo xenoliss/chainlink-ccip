@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 
 use crate::config::MultisigConfig;
 use crate::constant::*;
+use crate::eip712;
 use crate::error::*;
 use crate::eth_utils::*;
 use crate::event::*;
@@ -20,12 +21,13 @@ pub fn set_root(
         McmError::SignedHashAlreadySeen
     );
 
-    // verify ECDSA signatures on (root, validUntil) and ensure that the root group is successful
+    // verify EIP-712 ECDSA signatures on (root, validUntil) and ensure that the root group is successful
     verify_ecdsa_signatures(
         &ctx.accounts.root_signatures.signatures,
         &ctx.accounts.multisig_config,
         &root,
         valid_until,
+        ctx.program_id,
     )?;
 
     require!(
@@ -114,8 +116,10 @@ fn verify_ecdsa_signatures(
     multisig_config: &MultisigConfig,
     root: &[u8; 32],
     valid_until: u32,
+    program_id: &Pubkey,
 ) -> Result<()> {
-    let signed_hash = compute_eth_message_hash(root, valid_until);
+    let signed_hash =
+        eip712::compute_message_hash(root, valid_until, multisig_config.chain_id, program_id);
     let mut previous_addr: [u8; EVM_ADDRESS_BYTES] = [0; EVM_ADDRESS_BYTES];
     let mut group_vote_counts: [u8; NUM_GROUPS] = [0; NUM_GROUPS];
 
